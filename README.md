@@ -21,9 +21,7 @@ popup.js        # UI logic (start/stop, timer)
 icon.png        # Extension icon  
 ```
 
-## 🚀 Installation
-
-## 🧩 Install in Chrome / Edge (Unpacked)
+## 🚀 Installation - Install in Chrome / Edge
 
 1. **Download or clone this repo** to your local machine.
 2. Open your browser and go to:
