@@ -10,12 +10,11 @@ function refreshDATPosts() {
   console.log("Running auto-refresh in content script...");
 
   // 1. Check the "Select All" checkbox
-  //    The <mat-checkbox> with class "select-all-shipments-checkbox" 
-  //    and the nested <input> with class "mat-checkbox-input".
+  //    New selector: <input class="ag-input-field-input ag-checkbox-input" type="checkbox" aria-label="Column with Header Selection">
   const checkbox = document.querySelector(
-    "mat-checkbox.select-all-shipments-checkbox input.mat-checkbox-input"
+    'input.ag-input-field-input.ag-checkbox-input[aria-label="Column with Header Selection"]'
   );
-  if (checkbox && !checkbox.checked) {
+  if (checkbox?.checked === false) {
     checkbox.click();
     console.log("Checkbox selected.");
   } else {
@@ -23,8 +22,10 @@ function refreshDATPosts() {
   }
 
   // 2. Click the "Refresh" button
-  //    According to your snippet, there's a <div class="refresh-btn"> inside a <button>.
-  const refreshButton = document.querySelector("div.refresh-btn");
+  //    New selector: <cg-button id="refresh"> with shadow root containing <span class="bulk-action-label">.
+  const refreshButton = document
+    .querySelector('cg-button#refresh')
+    ?.shadowRoot?.querySelector('span.bulk-action-label');
   if (refreshButton) {
     refreshButton.click();
     console.log("Refresh button clicked.");
