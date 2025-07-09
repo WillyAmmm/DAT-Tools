@@ -23,7 +23,7 @@ icon.png        # Extension icon
 
 ## 🚀 Installation
 
-### 🧩 Install in Chrome / Edge (Unpacked)
+## 🧩 Install in Chrome / Edge (Unpacked)
 
 1. **Download or clone this repo** to your local machine.
 2. Open your browser and go to:
