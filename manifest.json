@@ -1,0 +1,33 @@
+{
+  "manifest_version": 3,
+  "name": "DAT Loadboard Auto Refresh",
+  "version": "2.0",
+  "description": "Automatically refresh DAT loadboard posts with modern UI and settings.",
+
+  "permissions": [
+    "alarms",
+    "notifications",
+    "scripting",
+    "activeTab",
+    "tabs",
+    "storage"
+  ],
+  "host_permissions": [
+    "https://one.dat.com/*"
+  ],
+
+  "background": {
+    "service_worker": "background.js"
+  },
+
+  "action": {
+    "default_popup": "popup.html"
+  },
+
+  "content_scripts": [
+    {
+      "matches": ["https://one.dat.com/*"],
+      "js": ["content.js"]
+    }
+  ]
+}

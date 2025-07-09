@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>DAT Auto Refresh</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <h3>DAT Auto Refresh</h3>
+
+  <label class="switch">
+    <input type="checkbox" id="toggleRefresh">
+    <span class="slider round"></span>
+  </label>
+  <span id="toggleLabel">Stopped</span>
+
+  <div class="section">
+    <label for="interval">Refresh every:</label>
+    <select id="interval">
+      <option value="15">15 min</option>
+      <option value="20">20 min</option>
+      <option value="30">30 min</option>
+      <option value="45">45 min</option>
+      <option value="60">60 min</option>
+    </select>
+  </div>
+
+  <div class="section">
+    <strong>Next refresh in:</strong> <span id="timer">--:--</span><br>
+    <strong>Refresh count:</strong> <span id="count">0</span>
+  </div>
+
+  <div class="section">
+    <label><input type="checkbox" id="darkMode"> Dark Mode</label>
+  </div>
+
+  <script src="popup.js" type="module"></script>
+</body>
+</html>

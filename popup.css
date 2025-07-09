@@ -1,0 +1,53 @@
+body {
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  padding: 15px;
+  background-color: #f0f0f0;
+  color: #333;
+  transition: background-color 0.3s ease, color 0.3s ease;
+  font-size: 14px;
+  width: 250px;
+}
+body.dark {
+  background-color: #1f1f1f;
+  color: #e0e0e0;
+}
+.section {
+  margin-top: 12px;
+}
+select, label, span, button {
+  font-size: 14px;
+}
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 24px;
+  vertical-align: middle;
+  margin-right: 10px;
+}
+.switch input { display: none; }
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-color: #bbb;
+  transition: .4s;
+  border-radius: 24px;
+}
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 16px;
+  width: 16px;
+  left: 4px;
+  bottom: 4px;
+  background-color: white;
+  transition: .4s;
+  border-radius: 50%;
+}
+input:checked + .slider {
+  background-color: #4caf50;
+}
+input:checked + .slider:before {
+  transform: translateX(20px);
+}
