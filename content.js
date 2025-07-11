@@ -1,7 +1,12 @@
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === "refreshNow") {
-    refreshDATPosts();
-    sendResponse({ status: "refreshed" });
+    refreshDATPosts().then(() => {
+      sendResponse({ status: "refreshed" });
+    }).catch((err) => {
+      console.error("❌ refreshDATPosts failed:", err);
+      sendResponse({ status: "error", message: err.message });
+    });
+    return true; // tell Chrome this is async
   }
 
   if (message.action === "countPosts") {
@@ -19,44 +24,40 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 async function refreshDATPosts() {
   console.log("🚀 Running auto-refresh in content script...");
 
-  try {
-    const cgGrid = document.querySelector('cg-grid');
-    if (!cgGrid) return console.error("❌ cg-grid not found");
+  const cgGrid = document.querySelector('cg-grid');
+  if (!cgGrid) throw new Error("❌ cg-grid not found");
 
-    const gridShadow = cgGrid.shadowRoot;
-    if (!gridShadow) return console.error("❌ cg-grid shadowRoot not found");
+  const gridShadow = cgGrid.shadowRoot;
+  if (!gridShadow) throw new Error("❌ cg-grid shadowRoot not found");
 
-    const checkbox = gridShadow.querySelector('input[type="checkbox"][aria-label="Column with Header Selection"]');
-    if (!checkbox) return console.error("❌ Select-all checkbox not found");
+  const checkbox = gridShadow.querySelector('input[type="checkbox"][aria-label="Column with Header Selection"]');
+  if (!checkbox) throw new Error("❌ Select-all checkbox not found");
 
-    checkbox.click();
-    checkbox.dispatchEvent(new Event("change", { bubbles: true }));
-    console.log("✅ Select-all checkbox clicked");
+  checkbox.click();
+  checkbox.dispatchEvent(new Event("change", { bubbles: true }));
+  console.log("✅ Select-all checkbox clicked");
 
-    // ⏳ Wait for refresh button to appear
-    const bulkActions = await waitForElement('cg-grid-bulk-actions', gridShadow);
-    const bulkShadow = bulkActions.shadowRoot;
-    if (!bulkShadow) return console.error("❌ cg-grid-bulk-actions shadowRoot not found");
+  // Dynamic wait for refresh button
+  const bulkActions = await waitForElement('cg-grid-bulk-actions', gridShadow);
+  const bulkShadow = bulkActions.shadowRoot;
+  if (!bulkShadow) throw new Error("❌ cg-grid-bulk-actions shadowRoot not found");
 
-    const refreshButton = await waitForElement('cg-button#refresh', bulkShadow);
-    const refreshShadow = refreshButton.shadowRoot;
-    if (!refreshShadow) return console.error("❌ Refresh button shadowRoot not found");
+  const refreshButton = await waitForElement('cg-button#refresh', bulkShadow);
+  const refreshShadow = refreshButton.shadowRoot;
+  if (!refreshShadow) throw new Error("❌ Refresh button shadowRoot not found");
 
-    refreshButton.click();
-    console.log("✅ Refresh button clicked");
-
-  } catch (err) {
-    console.error("💥 Script crashed:", err);
-  }
+  refreshButton.click();
+  console.log("✅ Refresh button clicked");
 }
 
 async function waitForElement(selector, root, maxWait = 5000, interval = 100) {
   const start = Date.now();
   while (Date.now() - start < maxWait) {
-    const element = root.querySelector(selector);
-    if (element) return element;
+    const el = root.querySelector(selector);
+    if (el) return el;
     await wait(interval);
   }
+  console.warn(`⚠️ Timeout waiting for selector: ${selector}`);
   throw new Error(`Timeout: ${selector} not found`);
 }
 
@@ -99,7 +100,7 @@ async function copyPostsFromCoworker() {
         ?.shadowRoot?.querySelector("button");
 
       if (!menuButton) {
-        console.warn(⚠️ 3-dot menu button not found for row ${i}`);
+        console.warn(`⚠️ 3-dot menu button not found for row ${i}`);
         continue;
       }
 
