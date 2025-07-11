@@ -33,7 +33,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     });
 
     count = 1;
-    nextRefresh = Date.now() + refreshInterval * 60000;
+    nextRefresh = Date.now() + (refreshInterval * 60000) + 7000;
     isRunning = true;
 
     chrome.storage.local.set({
@@ -87,7 +87,7 @@ chrome.alarms.onAlarm.addListener((alarm) => {
     // Retrieve the latest count in case the service worker was restarted
     chrome.storage.local.get(["count"], (res) => {
       count = (res.count || 0) + 1;
-      nextRefresh = Date.now() + refreshInterval * 60000;
+      nextRefresh = Date.now() + (refreshInterval * 60000) + 7000;
 
       chrome.storage.local.set({
         count,
