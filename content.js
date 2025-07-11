@@ -46,7 +46,10 @@ async function refreshDATPosts() {
   const refreshShadow = refreshButton.shadowRoot;
   if (!refreshShadow) throw new Error("❌ Refresh button shadowRoot not found");
 
-  refreshButton.click();
+  const refreshInner = refreshShadow.querySelector('button');
+  if (!refreshInner) throw new Error("❌ Refresh button element not found");
+
+  refreshInner.click();
   console.log("✅ Refresh button clicked");
 }
 
