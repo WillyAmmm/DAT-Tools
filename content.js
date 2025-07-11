@@ -33,16 +33,14 @@ async function refreshDATPosts() {
     checkbox.dispatchEvent(new Event("change", { bubbles: true }));
     console.log("✅ Select-all checkbox clicked");
 
-    await new Promise(res => setTimeout(res, 500));
-
-    const bulkActions = gridShadow.querySelector('cg-grid-bulk-actions');
-    if (!bulkActions) return console.error("❌ cg-grid-bulk-actions not found");
-
+    // ⏳ Wait for refresh button to appear
+    const bulkActions = await waitForElement('cg-grid-bulk-actions', gridShadow);
     const bulkShadow = bulkActions.shadowRoot;
     if (!bulkShadow) return console.error("❌ cg-grid-bulk-actions shadowRoot not found");
 
-    const refreshButton = bulkShadow.querySelector('cg-button#refresh');
-    if (!refreshButton) return console.error("❌ Refresh button not found");
+    const refreshButton = await waitForElement('cg-button#refresh', bulkShadow);
+    const refreshShadow = refreshButton.shadowRoot;
+    if (!refreshShadow) return console.error("❌ Refresh button shadowRoot not found");
 
     refreshButton.click();
     console.log("✅ Refresh button clicked");
@@ -50,6 +48,16 @@ async function refreshDATPosts() {
   } catch (err) {
     console.error("💥 Script crashed:", err);
   }
+}
+
+async function waitForElement(selector, root, maxWait = 5000, interval = 100) {
+  const start = Date.now();
+  while (Date.now() - start < maxWait) {
+    const element = root.querySelector(selector);
+    if (element) return element;
+    await wait(interval);
+  }
+  throw new Error(`Timeout: ${selector} not found`);
 }
 
 async function copyPostsFromCoworker() {
@@ -91,7 +99,7 @@ async function copyPostsFromCoworker() {
         ?.shadowRoot?.querySelector("button");
 
       if (!menuButton) {
-        console.warn(`⚠️ 3-dot menu button not found for row ${i}`);
+        console.warn(⚠️ 3-dot menu button not found for row ${i}`);
         continue;
       }
 
