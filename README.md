@@ -27,17 +27,19 @@ icon.png        # Extension icon
 
    ![Download ZIP](Screenshots/gh-download-zip.png)
 
-2. Open your browser and go to:
+2. Extract the ZIP folder by right clicking and selecting Extract All and then Extract
+
+3. Open your browser and go to:
    - Chrome: `chrome://extensions/`
    - Edge: `edge://extensions/`
 
-3. Enable **"Developer Mode"** and **"Allow extensions from other stores"**, then click **"Load unpacked"**:
+4. Enable **"Developer Mode"** and **"Allow extensions from other stores"**, then click **"Load unpacked"**:
 
    ![Browser Install Page](Screenshots/install-browser.png)
 
-4. Select the extracted folder where these files live — the folder containing `manifest.json`, **not** the folder that only contains another folder.
+5. Select the extracted folder where these files live — the folder containing `manifest.json`, **not** the folder that only contains another folder.
 
-5. Done! You should now see the **DAT Auto Refresh** icon in your extensions bar.
+6. Done! You should now see the **DAT Auto Refresh** icon in your extensions bar.
 
 ---
 
