@@ -1,15 +1,17 @@
 const toggle = document.getElementById("toggleRefresh");
 const label = document.getElementById("toggleLabel");
-const intervalSelect = document.getElementById("interval");
 const timerDisplay = document.getElementById("timer");
 const countDisplay = document.getElementById("count");
 const darkToggle = document.getElementById("darkMode");
+const copyButton = document.getElementById("copyCoworkerBtn");
 
 let timerInterval;
 
 toggle.addEventListener("change", () => {
   const action = toggle.checked ? "start" : "stop";
-  const interval = parseInt(intervalSelect.value);
+
+  // Fixed: remove intervalSelect and hardcode to 15
+  const interval = 15;
 
   chrome.runtime.sendMessage({ action, interval }, (res) => {
     if (action === "start") {
@@ -22,10 +24,6 @@ toggle.addEventListener("change", () => {
       clearInterval(timerInterval);
     }
   });
-});
-
-intervalSelect.addEventListener("change", () => {
-  chrome.storage.local.set({ refreshInterval: parseInt(intervalSelect.value) });
 });
 
 darkToggle.addEventListener("change", () => {
@@ -59,7 +57,6 @@ chrome.runtime.sendMessage({ action: "getStatus" }, (data) => {
   toggle.checked = data.isRunning;
   label.textContent = data.isRunning ? "Running" : "Stopped";
   countDisplay.textContent = data.count.toString();
-  intervalSelect.value = data.refreshInterval.toString();
 
   darkToggle.checked = data.darkMode;
   document.body.classList.toggle("dark", data.darkMode);
@@ -76,4 +73,9 @@ chrome.runtime.onMessage.addListener((message) => {
   if (message.action === "updateCount") {
     countDisplay.textContent = message.count.toString();
   }
+});
+
+// 🥚 Easter egg: Copy button shows fun message
+copyButton.addEventListener("click", () => {
+  alert("👀 Curious? This feature’s not ready yet — coming soon!");
 });

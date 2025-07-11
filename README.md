@@ -1,11 +1,11 @@
 # DAT Auto Refresh
 
-A simple browser extension that automatically refreshes DAT load board pages on a custom interval. Built to solve DAT's frustrating timeout behavior by keeping your session alive and your load board fresh.
+A simple browser extension that automatically refreshes DAT load board pages on a custom interval. Built to solve DAT's frustrating timeout behavior by keeping your session alive and your load board fresh. Feature to copy coworkers' posts in development.
 
 ## ⚙️ Features
 
-- Auto-refreshes any DAT tab at a customizable interval
-- Clean popup UI with start/stop toggle and timer
+- Auto-refreshes DAT load board every 15 minutes
+- Clean popup UI with start/stop toggle, timer, and refresh count
 - Works with both Chrome and Edge
 - Lightweight — no tracking, no login credentials needed or saved
 
@@ -35,16 +35,18 @@ icon.png        # Extension icon
 ## 🔁 How It Works
 
 Once installed:
+- Navigate to your DAT 'My Shipments'
 - Click the extension icon to open the popup
-- Set your desired refresh interval
 - Click “Start”
-- The script will now auto-refresh the active DAT tab on that interval
+- The script will now auto-refresh your posts every 15 minutes
+
+Still refreshes when on a different tab or if browser is minimized. DAT tab must stay on 'My Shipments' to refresh.
 
 If you close or restart the browser, you’ll need to start the timer again manually.
 
 ## 🛠️ Customization
 
-Users can change the refresh interval and toggle dark mode on or off
+Users can toggle dark mode on or off
 
 ## 💬 Known Issues
 

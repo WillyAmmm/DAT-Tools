@@ -1,12 +1,21 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>DAT Auto Refresh</title>
+  <title>DAT Tools</title>
   <link rel="stylesheet" href="popup.css">
+  <style>
+    html, body {
+      width: 300px;
+      height: auto;
+      overflow-x: hidden;
+    }
+  </style>
 </head>
 <body>
-  <h3>DAT Auto Refresh</h3>
+  <h3>DAT Tools</h3>
+  <hr>
 
+  <h4>DAT Auto Refresh</h4>
   <label class="switch">
     <input type="checkbox" id="toggleRefresh">
     <span class="slider round"></span>
@@ -14,22 +23,22 @@
   <span id="toggleLabel">Stopped</span>
 
   <div class="section">
-    <label for="interval">Refresh every:</label>
-    <select id="interval">
-      <option value="15">15 min</option>
-      <option value="20">20 min</option>
-      <option value="30">30 min</option>
-      <option value="45">45 min</option>
-      <option value="60">60 min</option>
-    </select>
-  </div>
-
-  <div class="section">
     <strong>Next refresh in:</strong> <span id="timer">--:--</span><br>
     <strong>Refresh count:</strong> <span id="count">0</span>
   </div>
 
+  <hr>
+
   <div class="section">
+    <h4>Copy Coworker's Posts</h4>
+    <p>This feature is still being worked on and is disabled for this release.</p>
+    <button id="copyCoworkerBtn">Copy</button>
+  </div>
+
+  <hr>
+
+  <div class="section">
+    <h4>Settings</h4>
     <label><input type="checkbox" id="darkMode"> Dark Mode</label>
   </div>
 

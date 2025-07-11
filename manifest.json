@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "DAT Loadboard Auto Refresh",
-  "version": "2.0",
-  "description": "Automatically refresh DAT loadboard posts with modern UI and settings.",
+  "name": "DAT Tools",
+  "version": "3.0",
+  "description": "Automatically refresh DAT loadboard posts every 15 minutes and copy coworker's posts. Updated for new DAT UI.",
 
   "permissions": [
     "alarms",
@@ -21,7 +21,11 @@
   },
 
   "action": {
-    "default_popup": "popup.html"
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icon.png"
+    },
+    "default_title": "DAT Tools"
   },
 
   "content_scripts": [
