@@ -27,7 +27,7 @@ icon.png        # Extension icon
 
    ![Download ZIP](Screenshots/gh-download-zip.png)
 
-2. Extract the ZIP folder by right clicking and selecting Extract All and then Extract
+2. Extract the downloaded ZIP folder on your PC by right clicking and selecting Extract All and then Extract
 
 3. Open your browser and go to:
    - Chrome: `chrome://extensions/`
