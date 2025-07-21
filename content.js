@@ -38,11 +38,19 @@ async function refreshDATPosts() {
   console.log("✅ Select-all checkbox clicked");
 
   // Dynamic wait for refresh button
-  const bulkActions = await waitForElement('cg-grid-bulk-actions', gridShadow);
+  const bulkActions = await waitForElement(
+    'cg-grid-bulk-actions',
+    gridShadow,
+    10000
+  );
   const bulkShadow = bulkActions.shadowRoot;
   if (!bulkShadow) throw new Error("❌ cg-grid-bulk-actions shadowRoot not found");
 
-  const refreshButton = await waitForElement('cg-button#refresh', bulkShadow);
+  const refreshButton = await waitForElement(
+    'cg-button#refresh',
+    bulkShadow,
+    10000
+  );
   const refreshShadow = refreshButton.shadowRoot;
   if (!refreshShadow) throw new Error("❌ Refresh button shadowRoot not found");
 
@@ -51,6 +59,14 @@ async function refreshDATPosts() {
 
   refreshInner.click();
   console.log("✅ Refresh button clicked");
+
+  // Wait until the bulk actions bar disappears to confirm refresh
+  await waitForElementToDisappear(
+    'cg-grid-bulk-actions',
+    gridShadow,
+    10000
+  );
+  console.log("✅ Refresh completed");
 }
 
 async function waitForElement(selector, root, maxWait = 5000, interval = 100) {
@@ -147,4 +163,15 @@ async function copyPostsFromCoworker() {
 
 function wait(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function waitForElementToDisappear(selector, root, maxWait = 5000, interval = 100) {
+  const start = Date.now();
+  while (Date.now() - start < maxWait) {
+    const el = root.querySelector(selector);
+    if (!el) return true;
+    await wait(interval);
+  }
+  console.warn(`⚠️ Timeout waiting for ${selector} to disappear`);
+  throw new Error(`Timeout: ${selector} still present`);
 }
