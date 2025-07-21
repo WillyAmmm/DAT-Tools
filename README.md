@@ -12,13 +12,13 @@ A simple browser extension that automatically refreshes DAT load board pages on 
 ## 🧱 File Structure
 
 ```
-background.js   # Handles the refresh logic  
-content.js      # (Optional) For future enhancements to page behavior  
-manifest.json   # Defines extension settings and permissions  
-popup.html      # Popup interface  
-popup.css       # Popup styling  
-popup.js        # UI logic (start/stop, timer)  
-icon.png        # Extension icon  
+background.js   # Manages alarms, state, and communication for timed refresh logic  
+content.js      # Executes in-page refresh logic and coworker post copying via DOM manipulation  
+manifest.json   # Declares extension metadata, permissions, scripts, and entry points  
+popup.html      # Extension popup layout and structure  
+popup.css       # Styles the popup interface and supports light/dark themes  
+popup.js        # Handles popup UI logic, refresh toggles, timers, and dark mode  
+icon.png        # Extension icon used in the browser toolbar and notifications   
 ```
 
 ## 🚀 Installation - Install in Chrome / Edge
