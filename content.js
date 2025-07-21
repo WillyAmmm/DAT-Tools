@@ -57,11 +57,20 @@ async function refreshDATPosts() {
   const refreshInner = refreshShadow.querySelector('button');
   if (!refreshInner) throw new Error("❌ Refresh button element not found");
 
+  // Wait until the refresh button is enabled before clicking
+  await waitForElementEnabled(refreshInner, 10000);
+
   refreshInner.click();
   console.log("✅ Refresh button clicked");
 
-// Wait for the select-all checkbox to clear which indicates refresh finished
-  await waitForCheckboxToBeUnchecked(checkbox, 10000);
+  try {
+    // Wait for the select-all checkbox to clear which indicates refresh finished
+    await waitForCheckboxToBeUnchecked(checkbox, 10000);
+  } catch (err) {
+    console.warn("⚠️ First refresh attempt failed, retrying...");
+    refreshInner.click();
+    await waitForCheckboxToBeUnchecked(checkbox, 10000);
+  }
   console.log("✅ Refresh completed");
 }
 
@@ -159,6 +168,19 @@ async function copyPostsFromCoworker() {
 
 function wait(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function waitForElementEnabled(element, maxWait = 5000, interval = 100) {
+  const start = Date.now();
+  while (Date.now() - start < maxWait) {
+    const disabled = element.disabled ||
+      element.getAttribute('disabled') !== null ||
+      element.getAttribute('aria-disabled') === 'true';
+    if (!disabled) return true;
+    await wait(interval);
+  }
+  console.warn('⚠️ Timeout waiting for element to become enabled');
+  return false;
 }
 
 async function waitForCheckboxToBeUnchecked(checkbox, maxWait = 5000, interval = 100) {
