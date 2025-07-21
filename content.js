@@ -24,17 +24,21 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 async function refreshDATPosts() {
   console.log("🚀 Running auto-refresh in content script...");
 
-  const cgGrid = document.querySelector('cg-grid');
+  const checkboxSelector =
+    'input[type="checkbox"][aria-label="Column with Header Selection"]';
+
+  const cgGrid = await waitForElement('cg-grid', document, 10000);
   if (!cgGrid) throw new Error("❌ cg-grid not found");
 
   const gridShadow = cgGrid.shadowRoot;
   if (!gridShadow) throw new Error("❌ cg-grid shadowRoot not found");
 
-  const checkbox = gridShadow.querySelector('input[type="checkbox"][aria-label="Column with Header Selection"]');
+  const checkbox = await waitForElement(checkboxSelector, gridShadow, 10000);
   if (!checkbox) throw new Error("❌ Select-all checkbox not found");
 
-  checkbox.click();
+  clickElement(checkbox);
   checkbox.dispatchEvent(new Event("change", { bubbles: true }));
+  await wait(150);
   console.log("✅ Select-all checkbox clicked");
 
   // Dynamic wait for refresh button
@@ -60,17 +64,17 @@ async function refreshDATPosts() {
   // Wait until the refresh button is enabled before clicking
   await waitForElementEnabled(refreshInner, 10000);
 
-  refreshInner.click();
+  clickElement(refreshInner);
   console.log("✅ Refresh button clicked");
 
   try {
     // Wait for the select-all checkbox to clear which indicates refresh finished
-    await waitForCheckboxToBeUnchecked(checkbox, 10000);
+    await waitForCheckboxToBeUnchecked(checkboxSelector, 10000);
   } catch (err) {
     console.warn("⚠️ First refresh attempt failed, retrying...");
-    refreshInner.click();
-    await wait(200);
-    await waitForCheckboxToBeUnchecked(checkbox, 10000);
+    clickElement(refreshInner);
+    await wait(300);
+    await waitForCheckboxToBeUnchecked(checkboxSelector, 10000);
   }
   console.log("✅ Refresh completed");
 }
@@ -184,13 +188,23 @@ async function waitForElementEnabled(element, maxWait = 5000, interval = 100) {
   return false;
 }
 
-async function waitForCheckboxToBeUnchecked(checkbox, maxWait = 5000, interval = 100) {
+async function waitForCheckboxToBeUnchecked(selector, maxWait = 5000, interval = 100) {
   const start = Date.now();
   while (Date.now() - start < maxWait) {
-    const isChecked = checkbox.checked || checkbox.getAttribute('aria-checked') === 'true';
+    const cgGrid = document.querySelector('cg-grid');
+    const gridShadow = cgGrid?.shadowRoot;
+    const checkbox = gridShadow?.querySelector(selector);
+    const isChecked = checkbox && (checkbox.checked || checkbox.getAttribute('aria-checked') === 'true');
     if (!isChecked) return true;
     await wait(interval);
   }
   console.warn('⚠️ Timeout waiting for checkbox to uncheck');
   throw new Error('Timeout: checkbox still checked');
+}
+
+function clickElement(el) {
+  if (!el) return;
+  el.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, view: window }));
+  el.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true, view: window }));
+  el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
 }
