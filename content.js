@@ -69,6 +69,7 @@ async function refreshDATPosts() {
   } catch (err) {
     console.warn("⚠️ First refresh attempt failed, retrying...");
     refreshInner.click();
+    await wait(200);
     await waitForCheckboxToBeUnchecked(checkbox, 10000);
   }
   console.log("✅ Refresh completed");
