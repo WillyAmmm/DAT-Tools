@@ -27,7 +27,7 @@ async function refreshDATPosts() {
   const checkboxSelector =
     'input[type="checkbox"][aria-label="Column with Header Selection"]';
 
-  const cgGrid = await waitForElement('cg-grid', document, 10000);
+  const cgGrid = await waitForElement("cg-grid", document, 10000);
   if (!cgGrid) throw new Error("❌ cg-grid not found");
 
   const gridShadow = cgGrid.shadowRoot;
@@ -36,10 +36,14 @@ async function refreshDATPosts() {
   const checkbox = await waitForElement(checkboxSelector, gridShadow, 10000);
   if (!checkbox) throw new Error("❌ Select-all checkbox not found");
 
-  clickElement(checkbox);
-  checkbox.dispatchEvent(new Event("change", { bubbles: true }));
+  // Ensure no rows are pre-selected
+  await ensureCheckboxState(checkbox, false);
   await wait(150);
-  console.log("✅ Select-all checkbox clicked");
+
+  // Select all rows for refresh
+  await ensureCheckboxState(checkbox, true);
+  await wait(200);
+  console.log("✅ Select-all checkbox checked");
 
   // Dynamic wait for refresh button
   const bulkActions = await waitForElement(
@@ -63,18 +67,19 @@ async function refreshDATPosts() {
 
   // Wait until the refresh button is enabled before clicking
   await waitForElementEnabled(refreshInner, 10000);
+  await wait(250);
 
   clickElement(refreshInner);
   console.log("✅ Refresh button clicked");
 
   try {
     // Wait for the select-all checkbox to clear which indicates refresh finished
-    await waitForCheckboxToBeUnchecked(checkboxSelector, 10000);
+    await waitForCheckboxState(checkbox, false, 10000);
   } catch (err) {
     console.warn("⚠️ First refresh attempt failed, retrying...");
     clickElement(refreshInner);
-    await wait(300);
-    await waitForCheckboxToBeUnchecked(checkboxSelector, 10000);
+    await wait(500);
+    await waitForCheckboxState(checkbox, false, 10000);
   }
   console.log("✅ Refresh completed");
 }
@@ -188,19 +193,34 @@ async function waitForElementEnabled(element, maxWait = 5000, interval = 100) {
   return false;
 }
 
-async function waitForCheckboxToBeUnchecked(selector, maxWait = 5000, interval = 100) {
+
+const isCheckboxChecked = (el) =>
+  el && (el.checked || el.getAttribute("aria-checked") === "true");
+
+const waitForCheckboxState = async (
+  el,
+  shouldBeChecked,
+  maxWait = 5000,
+  interval = 100
+) => {
   const start = Date.now();
   while (Date.now() - start < maxWait) {
-    const cgGrid = document.querySelector('cg-grid');
-    const gridShadow = cgGrid?.shadowRoot;
-    const checkbox = gridShadow?.querySelector(selector);
-    const isChecked = checkbox && (checkbox.checked || checkbox.getAttribute('aria-checked') === 'true');
-    if (!isChecked) return true;
+    if (isCheckboxChecked(el) === shouldBeChecked) return true;
     await wait(interval);
   }
-  console.warn('⚠️ Timeout waiting for checkbox to uncheck');
-  throw new Error('Timeout: checkbox still checked');
-}
+  console.warn(
+    `⚠️ Timeout waiting for checkbox to become ${shouldBeChecked ? "checked" : "unchecked"}`
+  );
+  throw new Error("Timeout: checkbox state mismatch");
+};
+
+const ensureCheckboxState = async (el, shouldBeChecked) => {
+  if (isCheckboxChecked(el) !== shouldBeChecked) {
+    clickElement(el);
+    el.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+  await waitForCheckboxState(el, shouldBeChecked);
+};
 
 function clickElement(el) {
   if (!el) return;
