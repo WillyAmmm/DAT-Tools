@@ -41,6 +41,8 @@ icon.png        # Extension icon
 
 6. Done! You should now see the **DAT Auto Refresh** icon in your extensions bar.
 
+7. BE SURE TO RESTART YOUR BROWSER AFTER ADDING THE EXTENSION OR IT WON'T WORK!
+
 ---
 
 ## 🔁 How It Works
