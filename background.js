@@ -111,7 +111,7 @@ function sendRefreshRequest() {
               "Error sending message to content script:",
               chrome.runtime.lastError.message
             );
-          } else {
+          } else if (response && response.status === "refreshed") {
             console.log("Content script response:", response);
 
             chrome.notifications.create({
@@ -124,6 +124,14 @@ function sendRefreshRequest() {
             chrome.runtime.sendMessage({
               action: "updateCount",
               count
+            });
+          } else {
+            console.error("Refresh failed:", response);
+            chrome.notifications.create({
+              type: "basic",
+              iconUrl: "icon.png",
+              title: "DAT Auto Refresh",
+              message: `Refresh failed: ${response?.message || "unknown error"}`
             });
           }
         });

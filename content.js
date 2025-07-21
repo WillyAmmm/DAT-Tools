@@ -38,11 +38,19 @@ async function refreshDATPosts() {
   console.log("✅ Select-all checkbox clicked");
 
   // Dynamic wait for refresh button
-  const bulkActions = await waitForElement('cg-grid-bulk-actions', gridShadow);
+  const bulkActions = await waitForElement(
+    'cg-grid-bulk-actions',
+    gridShadow,
+    10000
+  );
   const bulkShadow = bulkActions.shadowRoot;
   if (!bulkShadow) throw new Error("❌ cg-grid-bulk-actions shadowRoot not found");
 
-  const refreshButton = await waitForElement('cg-button#refresh', bulkShadow);
+  const refreshButton = await waitForElement(
+    'cg-button#refresh',
+    bulkShadow,
+    10000
+  );
   const refreshShadow = refreshButton.shadowRoot;
   if (!refreshShadow) throw new Error("❌ Refresh button shadowRoot not found");
 
@@ -51,6 +59,10 @@ async function refreshDATPosts() {
 
   refreshInner.click();
   console.log("✅ Refresh button clicked");
+
+  // Wait for the select-all checkbox to clear which indicates refresh finished
+  await waitForCheckboxToBeUnchecked(checkbox, 10000);
+  console.log("✅ Refresh completed");
 }
 
 async function waitForElement(selector, root, maxWait = 5000, interval = 100) {
@@ -147,4 +159,15 @@ async function copyPostsFromCoworker() {
 
 function wait(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function waitForCheckboxToBeUnchecked(checkbox, maxWait = 5000, interval = 100) {
+  const start = Date.now();
+  while (Date.now() - start < maxWait) {
+    const isChecked = checkbox.checked || checkbox.getAttribute('aria-checked') === 'true';
+    if (!isChecked) return true;
+    await wait(interval);
+  }
+  console.warn('⚠️ Timeout waiting for checkbox to uncheck');
+  throw new Error('Timeout: checkbox still checked');
 }
