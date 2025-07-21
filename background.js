@@ -29,11 +29,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     refreshInterval = Math.max(15, message.interval || 15);
 
     chrome.alarms.create("datRefreshAlarm", {
-      periodInMinutes: refreshInterval + (7 / 60)
+      // Refresh every 15 minutes and 30 seconds
+      periodInMinutes: refreshInterval + (30 / 60)
     });
 
     count = 1;
-    nextRefresh = Date.now() + (refreshInterval * 60000) + 7000;
+    // 30 second buffer after each 15 minute interval
+    nextRefresh = Date.now() + (refreshInterval * 60000) + 30000;
     isRunning = true;
 
     chrome.storage.local.set({
@@ -87,7 +89,8 @@ chrome.alarms.onAlarm.addListener((alarm) => {
     // Retrieve the latest count in case the service worker was restarted
     chrome.storage.local.get(["count"], (res) => {
       count = (res.count || 0) + 1;
-      nextRefresh = Date.now() + (refreshInterval * 60000) + 7000;
+      // Schedule the next refresh for 15 minutes and 30 seconds from now
+      nextRefresh = Date.now() + (refreshInterval * 60000) + 30000;
 
       chrome.storage.local.set({
         count,

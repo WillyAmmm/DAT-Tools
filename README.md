@@ -4,7 +4,7 @@ A simple browser extension that automatically refreshes DAT load board pages on 
 
 ## ⚙️ Features
 
-- Auto-refreshes DAT load board every 15 minutes
+- Auto-refreshes DAT load board every 15 minutes and 30 seconds
 - Clean popup UI with start/stop toggle, timer, and refresh count
 - Works with both Chrome and Edge
 - Lightweight — no tracking, no login credentials needed or saved
@@ -52,7 +52,7 @@ Once installed:
   ![Extensions Bar](Screenshots/extensions.png)
 
 - Click **Start**
-- The script will now auto-refresh your posts every 15 minutes
+- The script will now auto-refresh your posts every 15 minutes and 30 seconds
 
 Still refreshes when on a different tab or if browser is minimized. DAT tab must stay on 'My Shipments' to refresh.
 
