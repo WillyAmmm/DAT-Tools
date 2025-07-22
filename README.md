@@ -12,13 +12,17 @@ A simple browser extension that automatically refreshes DAT load board pages on 
 ## 🧱 File Structure
 
 ```
-background.js   # Manages alarms, state, and communication for timed refresh logic  
-content.js      # Executes in-page refresh logic and coworker post copying via DOM manipulation  
-manifest.json   # Declares extension metadata, permissions, scripts, and entry points  
-popup.html      # Extension popup layout and structure  
-popup.css       # Styles the popup interface and supports light/dark themes  
-popup.js        # Handles popup UI logic, refresh toggles, timers, and dark mode  
-icon.png        # Extension icon used in the browser toolbar and notifications   
+background.js     # Manages alarms, state, and communication for timed refresh logic  
+content.js        # Executes in-page refresh logic and coworker post copying via DOM manipulation  
+manifest.json     # Declares extension metadata, permissions, scripts, and entry points  
+popup.html        # Extension popup layout and structure  
+popup.css         # Styles the popup interface and supports light/dark themes  
+popup.js          # Handles popup UI logic, refresh toggles, timers, and dark mode  
+icon.png          # Extension icon used in the browser toolbar and notifications  
+icon_*.png        # (Unused) Alternate and legacy icons — icon_2, icon_3, icon_old  
+AGENTS.md         # Codex guide defining roles, message protocols, coding rules, and UI/DOM expectations  
+README.md         # Project overview, features, setup instructions, and usage notes  
+Screenshots/      # Assets for README installation instructions  
 ```
 
 ## 🚀 Installation - Install in Chrome / Edge
@@ -39,7 +43,7 @@ icon.png        # Extension icon used in the browser toolbar and notifications
 
 5. Select the extracted folder where these files live — the folder containing `manifest.json`, **not** the folder that only contains another folder.
 
-6. Done! You should now see the **DAT Auto Refresh** icon in your extensions bar.
+6. Done! You should now see the **DAT Auto Refresh** icon in your extensions bar (puzzle piece). You can pin DAT Tools to stay on your browser bar.
 
 7. BE SURE TO RESTART YOUR BROWSER AFTER ADDING THE EXTENSION OR IT WON'T WORK!
 
@@ -55,6 +59,7 @@ Once installed:
 
 - Click **Start**
 - The script will now auto-refresh your posts every 15 minutes and 30 seconds
+- For best results, wait for your posts to be 15+ minutes old before starting
 
 Still refreshes when on a different tab or if browser is minimized. DAT tab must stay on 'My Shipments' to refresh.
 
@@ -73,3 +78,8 @@ Users can toggle dark mode on or off
 ## 🧪 Coming Soon (maybe)
 
 - Function to copy coworker's posts
+
+## 📄 Changelog
+
+- 7/22 Updated README with clearer instructions for release.
+- 7/21 Fixed refresh hanging. Refreshes more reliably now.
