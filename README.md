@@ -1,3 +1,5 @@
+# DEVELOPMENT BRANCH
+
 # DAT Auto Refresh
 
 A simple browser extension that automatically refreshes DAT load board pages on a custom interval. Built to solve DAT's frustrating timeout behavior by keeping your session alive and your load board fresh. Feature to copy coworkers' posts in development.
