@@ -15,7 +15,7 @@ toggle.addEventListener("change", () => {
 
   chrome.runtime.sendMessage({ action, interval }, (res) => {
     if (action === "start") {
-      label.textContent = "Running";
+      label.textContent = res.isDelayed ? "Refresh Delayed" : "Running";
       startCountdown(res.nextRefresh);
     } else {
       label.textContent = "Stopped";
@@ -55,7 +55,9 @@ function startCountdown(timestamp) {
 // 🔄 Restore state when popup opens
 chrome.runtime.sendMessage({ action: "getStatus" }, (data) => {
   toggle.checked = data.isRunning;
-  label.textContent = data.isRunning ? "Running" : "Stopped";
+  label.textContent = data.isRunning
+    ? data.isDelayed ? "Refresh Delayed" : "Running"
+    : "Stopped";
   countDisplay.textContent = data.count.toString();
 
   darkToggle.checked = data.darkMode;
@@ -72,6 +74,10 @@ chrome.runtime.sendMessage({ action: "getStatus" }, (data) => {
 chrome.runtime.onMessage.addListener((message) => {
   if (message.action === "updateCount") {
     countDisplay.textContent = message.count.toString();
+  }
+  if (message.action === "updateNextRefresh") {
+    label.textContent = message.isDelayed ? "Refresh Delayed" : "Running";
+    startCountdown(message.nextRefresh);
   }
 });
 

@@ -1,6 +1,45 @@
+let nextReadyAt = 0;
+
+const parseTime = (text) => {
+  const [m, s] = text.split(":").map((n) => parseInt(n, 10));
+  return m * 60 + s;
+};
+
+const updateReadyTime = () => {
+  const gridShadow = document.querySelector("cg-grid")?.shadowRoot;
+  if (!gridShadow) return;
+
+  const queues = gridShadow.querySelectorAll("#queue-to-refresh-age-tooltip");
+  let latest = 0;
+  queues.forEach((el) => {
+    const val = el.shadowRoot?.querySelector("span.timer-value")?.textContent;
+    if (!val) return;
+    const sec = parseTime(val.trim());
+    const readyAt = Date.now() + sec * 1000;
+    if (readyAt > latest) latest = readyAt;
+  });
+
+  nextReadyAt = latest || Date.now();
+  console.log("Next ready at:", new Date(nextReadyAt).toLocaleTimeString());
+};
+
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") updateReadyTime();
+});
+
+updateReadyTime();
+
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === "refreshNow") {
+    updateReadyTime();
+    if (Date.now() < nextReadyAt) {
+      const delayUntil = nextReadyAt + 30000;
+      console.log("Refresh delayed until", new Date(delayUntil).toLocaleTimeString());
+      sendResponse({ status: "delayed", delayUntil });
+      return true;
+    }
     refreshDATPosts().then(() => {
+      updateReadyTime();
       sendResponse({ status: "refreshed" });
     }).catch((err) => {
       console.error("❌ refreshDATPosts failed:", err);
