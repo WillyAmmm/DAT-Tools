@@ -1,11 +1,91 @@
+let readyMap = new WeakMap();
+let overallReadyAt = 0;
+
+const parseTimer = (text) => {
+  const [m, s] = text.trim().split(":").map(Number);
+  return (m * 60 + s) * 1000;
+};
+
+const getRowReadyAt = (row) => {
+  const tooltip = row.querySelector("#queue-to-refresh-age-tooltip");
+  if (tooltip) {
+    const timerSpan = tooltip.shadowRoot?.querySelector("span.timer-value");
+    if (timerSpan) {
+      return Date.now() + parseTimer(timerSpan.textContent);
+    }
+  }
+  return Date.now();
+};
+
+const collectReadyTimes = () => {
+  const gridShadow = document.querySelector("cg-grid")?.shadowRoot;
+  if (!gridShadow) return;
+  readyMap = new WeakMap();
+  overallReadyAt = Date.now();
+  const rows = gridShadow.querySelectorAll(".ag-center-cols-container .ag-row");
+  rows.forEach((row) => {
+    const readyAt = getRowReadyAt(row);
+    readyMap.set(row, readyAt);
+    if (readyAt > overallReadyAt) overallReadyAt = readyAt;
+  });
+};
+
+const getDelayUntilReady = () => {
+  let maxReady = overallReadyAt;
+  readyMap.forEach((t) => {
+    if (t > maxReady) maxReady = t;
+  });
+  return Math.max(0, maxReady - Date.now());
+};
+
+const observeNewRows = () => {
+  const gridShadow = document.querySelector("cg-grid")?.shadowRoot;
+  const container = gridShadow?.querySelector(".ag-center-cols-container");
+  if (!container) return;
+  const observer = new MutationObserver((mutations) => {
+    mutations.forEach((m) => {
+      m.addedNodes.forEach((n) => {
+        if (n.matches && n.matches(".ag-row")) {
+          const readyAt = getRowReadyAt(n);
+          readyMap.set(n, readyAt);
+          if (readyAt > overallReadyAt) overallReadyAt = readyAt;
+        }
+      });
+    });
+  });
+  observer.observe(container, { childList: true, subtree: true });
+};
+
+window.addEventListener("load", () => {
+  collectReadyTimes();
+  observeNewRows();
+});
+
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") {
+    collectReadyTimes();
+  }
+});
+
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === "refreshNow") {
-    refreshDATPosts().then(() => {
-      sendResponse({ status: "refreshed" });
-    }).catch((err) => {
-      console.error("❌ refreshDATPosts failed:", err);
-      sendResponse({ status: "error", message: err.message });
-    });
+    const delay = getDelayUntilReady();
+    if (delay > 0) {
+      const totalDelay = delay + 30000; // add 30s buffer
+      console.log(`⏳ Refresh delayed ${Math.ceil(totalDelay / 1000)}s`);
+      sendResponse({ status: "delayed", delay: totalDelay });
+      return; // skip actual refresh
+    }
+
+    refreshDATPosts()
+      .then(() => {
+        collectReadyTimes();
+        sendResponse({ status: "refreshed" });
+      })
+      .catch((err) => {
+        console.error("❌ refreshDATPosts failed:", err);
+        sendResponse({ status: "error", message: err.message });
+      });
     return true; // tell Chrome this is async
   }
 

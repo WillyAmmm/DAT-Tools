@@ -62,6 +62,9 @@ chrome.runtime.sendMessage({ action: "getStatus" }, (data) => {
   document.body.classList.toggle("dark", data.darkMode);
 
   if (data.isRunning && data.nextRefresh) {
+    if (data.isDelayed) {
+      label.textContent = "Refresh Delayed";
+    }
     startCountdown(data.nextRefresh);
   } else {
     timerDisplay.textContent = "--:--";
@@ -72,6 +75,15 @@ chrome.runtime.sendMessage({ action: "getStatus" }, (data) => {
 chrome.runtime.onMessage.addListener((message) => {
   if (message.action === "updateCount") {
     countDisplay.textContent = message.count.toString();
+  } else if (message.action === "updateNextRefresh") {
+    if (message.isDelayed) {
+      label.textContent = "Refresh Delayed";
+    } else if (toggle.checked) {
+      label.textContent = "Running";
+    }
+    if (message.nextRefresh) {
+      startCountdown(message.nextRefresh);
+    }
   }
 });
 
