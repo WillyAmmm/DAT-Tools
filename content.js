@@ -1,11 +1,11 @@
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === "refreshNow") {
-    refreshDATPosts().then(() => {
-      sendResponse({ status: "refreshed" });
-    }).catch((err) => {
-      console.error("❌ refreshDATPosts failed:", err);
-      sendResponse({ status: "error", message: err.message });
-    });
+    handleRefreshRequest()
+      .then(sendResponse)
+      .catch((err) => {
+        console.error("❌ handleRefreshRequest failed:", err);
+        sendResponse({ status: "error", message: err.message });
+      });
     return true; // tell Chrome this is async
   }
 
@@ -20,6 +20,45 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     sendResponse({ status: "copying" });
   }
 });
+
+async function handleRefreshRequest() {
+  const delay = getRefreshDelay();
+  if (delay > 0) {
+    console.log(`⏸ Refresh delayed for ${Math.round(delay / 1000)}s`);
+    return { status: "delayed", delay };
+  }
+
+  try {
+    await refreshDATPosts();
+    return { status: "refreshed" };
+  } catch (err) {
+    console.error("❌ refreshDATPosts failed:", err);
+    return { status: "error", message: err.message };
+  }
+}
+
+function getRefreshDelay() {
+  const tooltips = [...document.querySelectorAll("#queue-to-refresh-age-tooltip")];
+  let maxReadyAt = Date.now();
+
+  for (const tip of tooltips) {
+    const span = tip.shadowRoot?.querySelector("span.timer-value");
+    if (!span) continue;
+
+    let readyAt = parseFloat(tip.dataset.readyAt || "");
+    if (!readyAt) {
+      const [m, s] = span.textContent.trim().split(":" ).map(Number);
+      const remaining = (m || 0) * 60 + (s || 0);
+      readyAt = Date.now() + remaining * 1000;
+      tip.dataset.readyAt = readyAt;
+    }
+
+    if (readyAt > maxReadyAt) maxReadyAt = readyAt;
+  }
+
+  const remainingMs = Math.max(0, maxReadyAt - Date.now());
+  return remainingMs > 0 ? remainingMs + 30000 : 0; // add 30s buffer
+}
 
 async function refreshDATPosts() {
   console.log("🚀 Running auto-refresh in content script...");

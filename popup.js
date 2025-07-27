@@ -6,6 +6,7 @@ const darkToggle = document.getElementById("darkMode");
 const copyButton = document.getElementById("copyCoworkerBtn");
 
 let timerInterval;
+let isDelayed = false;
 
 toggle.addEventListener("change", () => {
   const action = toggle.checked ? "start" : "stop";
@@ -15,6 +16,7 @@ toggle.addEventListener("change", () => {
 
   chrome.runtime.sendMessage({ action, interval }, (res) => {
     if (action === "start") {
+      isDelayed = false;
       label.textContent = "Running";
       startCountdown(res.nextRefresh);
     } else {
@@ -22,6 +24,7 @@ toggle.addEventListener("change", () => {
       countDisplay.textContent = "0";
       timerDisplay.textContent = "--:--";
       clearInterval(timerInterval);
+      isDelayed = false;
     }
   });
 });
@@ -55,7 +58,12 @@ function startCountdown(timestamp) {
 // 🔄 Restore state when popup opens
 chrome.runtime.sendMessage({ action: "getStatus" }, (data) => {
   toggle.checked = data.isRunning;
-  label.textContent = data.isRunning ? "Running" : "Stopped";
+  isDelayed = data.isDelayed;
+  label.textContent = data.isRunning
+    ? data.isDelayed
+      ? "Refresh Delayed"
+      : "Running"
+    : "Stopped";
   countDisplay.textContent = data.count.toString();
 
   darkToggle.checked = data.darkMode;
@@ -73,9 +81,16 @@ chrome.runtime.onMessage.addListener((message) => {
   if (message.action === "updateCount") {
     countDisplay.textContent = message.count.toString();
   }
+
+  if (message.action === "updateNextRefresh") {
+    startCountdown(message.nextRefresh);
+    isDelayed = message.delayed;
+    label.textContent = isDelayed ? "Refresh Delayed" : "Running";
+  }
 });
 
 // 🥚 Easter egg: Copy button shows fun message
 copyButton.addEventListener("click", () => {
   alert("👀 Curious? This feature’s not ready yet — coming soon!");
 });
+
