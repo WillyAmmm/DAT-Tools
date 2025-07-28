@@ -35,6 +35,7 @@ function startWatchers(){
 }
 function stopWatchers(){
   observer?.disconnect(); observer=null;
+    
   clearInterval(beatID);  beatID=null;
 }
 document.addEventListener("visibilitychange",()=>{
@@ -69,6 +70,7 @@ function evaluate(src){
     console.log(`[DAT] ${src}: rows=${rows}, longest=${delay}s`);
     chrome.runtime.sendMessage({action:"postsModified",delay});
   }
+
 }
 
 /* ───────── Helpers ───────── */
@@ -104,6 +106,7 @@ async function refreshDATPosts() {
   const checkboxSelector =
     'input[type="checkbox"][aria-label="Column with Header Selection"]';
 
+    
   const cgGrid = await waitForElement("cg-grid", document, 10000);
   if (!cgGrid) throw new Error("❌ cg-grid not found");
 
@@ -138,7 +141,8 @@ async function refreshDATPosts() {
 
   // ✅ FIXED: Wait for outer refreshButton to be enabled before clicking
   await waitForElementEnabled(refreshButton, 10000);
-  await wait(250);
+
+    await wait(250);
   clickElement(refreshButton);
   console.log("✅ Refresh button clicked");
 
@@ -172,7 +176,8 @@ async function copyPostsFromCoworker() {
   const rows = gridShadow?.querySelectorAll(".ag-center-cols-container .ag-row");
   if (!rows || rows.length === 0) {
     console.log("No rows found to copy.");
-    return;
+    r
+        eturn;
   }
 
   const firstRow = rows[0];
@@ -207,6 +212,7 @@ async function copyPostsFromCoworker() {
         console.warn(`⚠️ 3-dot menu button not found for row ${i}`);
         continue;
       }
+        
 
       menuButton.click();
       await wait(100);
@@ -241,6 +247,7 @@ async function copyPostsFromCoworker() {
     } catch (err) {
       console.error(`❌ Error copying row ${i}:`, err);
     }
+
   }
 
   console.log(`✅ Done. Copied ${copiedCount} post(s) for owner: ${targetOwner}`);
@@ -272,6 +279,7 @@ const findRefreshButton = async (root, maxWait = 10000, interval = 100) => {
     await wait(interval);
   }
   console.warn("⚠️ Timeout locating refresh button");
+    
   throw new Error("Timeout: refresh button not found");
 };
 
@@ -325,4 +333,56 @@ function clickElement(el) {
   el.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, view: window }));
   el.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true, view: window }));
   el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
+}
+
+// [DAT-Fix] Robustly wait for the refresh button even when tab is hidden
+async function waitForRefreshButton(root, maxWait = 20000, pollInterval = 200) {
+  const start = Date.now();
+  // Search for refresh button using same logic as findRefreshButton
+  const searchButton = () => {
+    let btn = root.querySelector("cg-button[refresh]");
+    if (!btn) {
+      btn = [...root.querySelectorAll("cg-button")].find(b => {
+        const id = (b.id || "").toLowerCase();
+        const label = (b.getAttribute("aria-label") || "").toLowerCase();
+        const text = (b.textContent || "").trim().toLowerCase();
+        return id.includes("refresh") || label.includes("refresh") || text.includes("refresh");
+      });
+    }
+    return btn;
+  };
+  return new Promise((resolve, reject) => {
+    let btn = searchButton();
+    if (btn) {
+      console.log("[DAT-Fix] Found refresh button immediately");
+      resolve(btn);
+      return;
+    }
+    const observer = new MutationObserver(() => {
+      btn = searchButton();
+      if (btn) {
+        console.log("[DAT-Fix] Refresh button detected via MutationObserver");
+        observer.disconnect();
+        clearInterval(timer);
+        resolve(btn);
+      }
+    });
+    observer.observe(root, { childList: true, subtree: true });
+    const timer = setInterval(() => {
+      btn = searchButton();
+      if (btn) {
+        console.log("[DAT-Fix] Refresh button detected via polling");
+        observer.disconnect();
+        clearInterval(timer);
+        resolve(btn);
+        return;
+      }
+      if (Date.now() - start > maxWait) {
+        observer.disconnect();
+        clearInterval(timer);
+        console.warn("[DAT-Fix] Timeout waiting for refresh button");
+        reject(new Error("Timeout waiting for refresh button"));
+      }
+    }, pollInterval);
+  });
 }
