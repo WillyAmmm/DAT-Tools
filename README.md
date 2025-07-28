@@ -1,4 +1,6 @@
-# DEVELOPMENT BRANCH
+# DEVELOPMENT BRANCH. THIS VERSION IS BEING TESTED/WORKED ON AND IT NOT STABLE.
+
+## Working on adding a smart delay to delay refresh timer if all posts aren't ready to refresh.
 
 # DAT Auto Refresh
 

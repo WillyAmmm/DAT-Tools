@@ -1,146 +1,169 @@
-let isRunning = false;
-let count = 0;
-let nextRefresh = null;
-let refreshInterval = 15;
+/*  DAT Tools – background.js  (v5.0, 2025-07-28)
+    ▸ Switches to single ‘refreshNow’ handshake (content.js v4.8.1)
+    ▸ Accurate first-run delay, no 15-second loops
+    ▸ Popup always in sync, no phantom ‘posts modified’ spam              */
 
-// Restore any previously stored state when the service worker starts
+const BUFFER_SEC      = 30;    // add to longest timer
+const MIN_DELAY_MIN   = 0.1;   // Chrome alarms ≥ 0.1 min (≈6 s)
+const REFRESH_INT_MIN = 15;    // 15 m 30 s incl. buffer
+
+let isRunning   = false;
+let isDelayed   = false;
+let count       = 0;
+let nextRefresh = null;        // epoch-ms
+let lastRefresh = 0;           // epoch-ms of last successful refresh
+
+/* ───────── restore persisted state ───────── */
 chrome.storage.local.get(
-  ["isRunning", "count", "nextRefresh", "refreshInterval"],
-  (res) => {
-    isRunning = res.isRunning || false;
-    count = res.count || 0;
-    nextRefresh = res.nextRefresh || null;
-    refreshInterval = res.refreshInterval || 15;
+  ["isRunning","isDelayed","count","nextRefresh"],
+  d => {
+    isRunning   = !!d.isRunning;
+    isDelayed   = !!d.isDelayed;
+    count       = d.count       || 0;
+    nextRefresh = d.nextRefresh || null;
   }
 );
 
+/* full browser restart → reset */
 chrome.runtime.onStartup.addListener(() => {
-  chrome.storage.local.set({
-    isRunning: false,
-    count: 0,
-    nextRefresh: null
-  });
+  chrome.storage.local.set({ isRunning:false, isDelayed:false, count:0, nextRefresh:null });
   chrome.alarms.clear("datRefreshAlarm");
 });
 
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message.action === "start") {
-    console.log("Auto-refresh started via alarm.");
-    refreshInterval = Math.max(15, message.interval || 15);
+/* ───────── popup ⇄ background ───────── */
+chrome.runtime.onMessage.addListener((msg,_s,send)=>{
+  switch (msg.action) {
 
-    chrome.alarms.create("datRefreshAlarm", {
-      // Refresh every 15 minutes and 30 seconds
-      periodInMinutes: refreshInterval + (30 / 60)
-    });
+    case "start":
+      isRunning = true; isDelayed = false; count = 0;
+      chrome.storage.local.set({ isRunning, isDelayed, count });
+      sendRefreshRequest();                      // kick off immediately
+      send({ status:"started" });
+      break;
 
-    count = 1;
-    // 30 second buffer after each 15 minute interval
-    nextRefresh = Date.now() + (refreshInterval * 60000) + 30000;
-    isRunning = true;
+    case "stop":
+      chrome.alarms.clear("datRefreshAlarm");
+      isRunning = isDelayed = false; count = 0; nextRefresh = null;
+      chrome.storage.local.set({ isRunning, isDelayed, count, nextRefresh });
+      send({ status:"stopped" });
+      break;
 
-    chrome.storage.local.set({
-      isRunning: true,
-      count,
-      nextRefresh,
-      refreshInterval
-    });
+    case "getStatus":
+      chrome.storage.local.get(
+        ["isRunning","isDelayed","count","nextRefresh","darkMode"],
+        d=>send({
+          isRunning:   !!d.isRunning,
+          isDelayed:   !!d.isDelayed,
+          count:       d.count       || 0,
+          nextRefresh: d.nextRefresh || null,
+          darkMode:    !!d.darkMode
+        })
+      );
+      return true;                              // async
 
-    sendRefreshRequest();
+    /* mutation from content-script */
+    case "postsModified": {
+      if(!isRunning) break;
+      if(Date.now() - lastRefresh < 7000) break;        // ignore own churn
+      if(msg.delay === 0) break;
 
-    sendResponse({ status: "started", nextRefresh });
+      const proposedNext = Date.now() + (msg.delay + BUFFER_SEC)*1000;
+      if(nextRefresh && proposedNext <= nextRefresh + 5000) break; // ≤5 s shift
 
-  } else if (message.action === "stop") {
-    console.log("Auto-refresh stopped.");
-    chrome.alarms.clear("datRefreshAlarm");
+      isDelayed = true;
+      scheduleAlarm((msg.delay + BUFFER_SEC)/60,false);
+      notifyPopupDelay(true);
 
-    isRunning = false;
-    nextRefresh = null;
-    count = 0;
-
-    chrome.storage.local.set({
-      isRunning: false,
-      nextRefresh: null,
-      count: 0
-    });
-
-    sendResponse({ status: "stopped" });
-
-  } else if (message.action === "getStatus") {
-    chrome.storage.local.get(
-      ["refreshInterval", "darkMode", "isRunning", "count", "nextRefresh"],
-      (res) => {
-        sendResponse({
-          isRunning: res.isRunning || false,
-          count: res.count || 0,
-          nextRefresh: res.nextRefresh || null,
-          refreshInterval: res.refreshInterval || 15,
-          darkMode: res.darkMode || false
-        });
-      }
-    );
-    return true;
-  }
-});
-
-chrome.alarms.onAlarm.addListener((alarm) => {
-  if (alarm.name === "datRefreshAlarm") {
-    console.log("Alarm fired, sending refresh message...");
-
-    // Retrieve the latest count in case the service worker was restarted
-    chrome.storage.local.get(["count"], (res) => {
-      count = (res.count || 0) + 1;
-      // Schedule the next refresh for 15 minutes and 30 seconds from now
-      nextRefresh = Date.now() + (refreshInterval * 60000) + 30000;
-
-      chrome.storage.local.set({
-        count,
-        nextRefresh
+      chrome.notifications.create({
+        type:"basic", iconUrl:"icon.png",
+        title:"DAT Auto Refresh",
+        message:`Posts modified – refreshing in ${fmt(msg.delay + BUFFER_SEC)}`
       });
-
-      sendRefreshRequest();
-    });
-  }
-});
-
-function sendRefreshRequest() {
-  chrome.tabs.query({ url: "https://one.dat.com/*" }, (tabs) => {
-    if (tabs.length > 0) {
-      tabs.forEach((tab) => {
-        console.log("Sending refreshNow message to tabId:", tab.id);
-
-        chrome.tabs.sendMessage(tab.id, { action: "refreshNow" }, (response) => {
-          if (chrome.runtime.lastError) {
-            console.error(
-              "Error sending message to content script:",
-              chrome.runtime.lastError.message
-            );
-          } else if (response && response.status === "refreshed") {
-            console.log("Content script response:", response);
-
-            chrome.notifications.create({
-              type: "basic",
-              iconUrl: "icon.png",
-              title: "DAT Auto Refresh",
-              message: `Your DAT loadboard was just refreshed! (${count}x)`
-            });
-
-            chrome.runtime.sendMessage({
-              action: "updateCount",
-              count
-            });
-          } else {
-            console.error("Refresh failed:", response);
-            chrome.notifications.create({
-              type: "basic",
-              iconUrl: "icon.png",
-              title: "DAT Auto Refresh",
-              message: `Refresh failed: ${response?.message || "unknown error"}`
-            });
-          }
-        });
-      });
-    } else {
-      console.warn("No DAT loadboard tabs found.");
+      break;
     }
+  }
+});
+
+/* ───────── alarm fires ───────── */
+chrome.alarms.onAlarm.addListener(a=>{
+  if(a.name==="datRefreshAlarm" && isRunning) sendRefreshRequest();
+});
+
+/* ───────── main refresh routine ───────── */
+function sendRefreshRequest(){
+  chrome.tabs.query({ url:"https://one.dat.com/*" }, tabs=>{
+    if(!tabs.length) return;
+
+    const tabId = tabs[0].id;
+    chrome.tabs.sendMessage(tabId,{action:"refreshNow"},res=>{
+      /* No listener yet → retry in 15 s */
+      if(chrome.runtime.lastError || !res){
+        scheduleAlarm(0.25,false);
+        notifyPopupDelay(true);
+        return;
+      }
+
+      /* content says: still counting down */
+      if(res.status === "delayed"){
+        const totalSec = res.delay + BUFFER_SEC;
+        if(!isDelayed){
+          chrome.notifications.create({
+            type:"basic", iconUrl:"icon.png",
+            title:"DAT Auto Refresh",
+            message:`Refresh delayed – waiting ${fmt(totalSec)}`
+          });
+        }
+        isDelayed = true;
+        scheduleAlarm(totalSec/60,false);
+        notifyPopupDelay(true);
+        return;
+      }
+
+      /* content performed refresh OK */
+      if(res.status === "refreshed"){
+        count++; isDelayed=false; lastRefresh=Date.now();
+        chrome.storage.local.set({ count, isDelayed });
+
+        createNotification(`DAT loadboard refreshed! (${count})`);
+        scheduleAlarm(REFRESH_INT_MIN+0.5,true);        // 15 m 30 s
+        chrome.runtime.sendMessage({ action:"updateCount", count, nextRefresh });
+        return;
+      }
+
+      /* any explicit error from content */
+      if(res.status === "error"){
+        createNotification(`Refresh failed: ${res.message||"unknown error"}`);
+        scheduleAlarm(REFRESH_INT_MIN+0.5,true);
+        notifyPopupDelay(false);
+      }
+    });
+  });
+}
+
+/* ───────── push delay info to popup ───────── */
+function notifyPopupDelay(flag){
+  chrome.runtime.sendMessage({ action:"delay", isDelayed:flag, nextRefresh });
+}
+
+/* ───────── alarm helper ───────── */
+function scheduleAlarm(delayMin, repeat){
+  const mins = Math.max(delayMin, MIN_DELAY_MIN);
+  const info = { delayInMinutes: mins };
+  if(repeat) info.periodInMinutes = REFRESH_INT_MIN + 0.5;
+  chrome.alarms.create("datRefreshAlarm", info);
+
+  nextRefresh = Date.now() + mins*60_000;
+  chrome.storage.local.set({ nextRefresh });
+}
+
+/* ───────── misc helpers ───────── */
+function fmt(sec){
+  const m = Math.floor(sec/60);
+  const s = String(sec%60).padStart(2,"0");
+  return `${m}:${s}`;
+}
+function createNotification(msg){
+  chrome.notifications.create({
+    type:"basic", iconUrl:"icon.png", title:"DAT Auto Refresh", message:msg
   });
 }

@@ -1,81 +1,78 @@
-const toggle = document.getElementById("toggleRefresh");
-const label = document.getElementById("toggleLabel");
-const timerDisplay = document.getElementById("timer");
-const countDisplay = document.getElementById("count");
-const darkToggle = document.getElementById("darkMode");
-const copyButton = document.getElementById("copyCoworkerBtn");
+/*  DAT Tools – popup.js  (v4.4: label always resets to “Running” after success)  */
+const tgl  = document.getElementById("toggleRefresh");
+const lbl  = document.getElementById("toggleLabel");
+const tim  = document.getElementById("timer");
+const cnt  = document.getElementById("count");
+const dTgl = document.getElementById("darkMode");
+const egg  = document.getElementById("copyCoworkerBtn");
 
-let timerInterval;
+let timerID;
 
-toggle.addEventListener("change", () => {
-  const action = toggle.checked ? "start" : "stop";
+/* ───── restore UI on popup open ───── */
+chrome.runtime.sendMessage({ action: "getStatus" }, d => {
+  chrome.storage.local.get("darkMode", s => {
+    const dark = !!s.darkMode;
+    dTgl.checked = dark;
+    document.body.classList.toggle("dark", dark);
+  });
 
-  // Fixed: remove intervalSelect and hardcode to 15
-  const interval = 15;
+  tgl.checked     = d.isRunning;
+  cnt.textContent = d.count.toString();
 
-  chrome.runtime.sendMessage({ action, interval }, (res) => {
-    if (action === "start") {
-      label.textContent = "Running";
-      startCountdown(res.nextRefresh);
-    } else {
-      label.textContent = "Stopped";
-      countDisplay.textContent = "0";
-      timerDisplay.textContent = "--:--";
-      clearInterval(timerInterval);
-    }
+  if (d.isRunning && d.nextRefresh) updateRunning(d.isDelayed, d.nextRefresh);
+  else resetUI();
+});
+
+/* ───── start / stop toggle ───── */
+tgl.addEventListener("change", () => {
+  const action = tgl.checked ? "start" : "stop";
+  chrome.runtime.sendMessage({ action }, res => {
+    if (action === "start") updateRunning(false, res.nextRefresh);
+    else resetUI();
   });
 });
 
-darkToggle.addEventListener("change", () => {
-  const isDark = darkToggle.checked;
-  document.body.classList.toggle("dark", isDark);
-  chrome.storage.local.set({ darkMode: isDark });
+/* ───── dark-mode toggle ───── */
+dTgl.addEventListener("change", () => {
+  const dark = dTgl.checked;
+  document.body.classList.toggle("dark", dark);
+  chrome.storage.local.set({ darkMode: dark });
 });
 
-function startCountdown(timestamp) {
-  clearInterval(timerInterval);
-
-  function update() {
-    const diff = timestamp - Date.now();
-    if (diff <= 0) {
-      timerDisplay.textContent = "Refreshing...";
-      clearInterval(timerInterval);
-      return;
-    }
-
-    const min = Math.floor(diff / 60000);
-    const sec = Math.floor((diff % 60000) / 1000);
-    timerDisplay.textContent = `${min}:${sec.toString().padStart(2, "0")}`;
+/* ───── live pushes from background ───── */
+chrome.runtime.onMessage.addListener(m => {
+  if (m.action === "updateCount") {
+    cnt.textContent = m.count.toString();
+    lbl.textContent = "Running";                // <── always reset here
+    if (m.nextRefresh) startClock(m.nextRefresh);
   }
+  if (m.action === "delay")    updateRunning(true,  m.nextRefresh);
+  if (m.action === "updateDelay") updateRunning(m.isDelayed, m.nextRefresh);
+});
 
-  update();
-  timerInterval = setInterval(update, 1000);
+/* ───── helpers ───── */
+function updateRunning(delayed, ts) {
+  lbl.textContent = delayed ? "Refresh Delayed" : "Running";
+  startClock(ts);
+}
+function resetUI() {
+  lbl.textContent = "Stopped";
+  tim.textContent = "--:--";
+  cnt.textContent = "0";
+  clearInterval(timerID);
+}
+function startClock(stamp) {
+  clearInterval(timerID);
+  const tick = () => {
+    const diff = stamp - Date.now();
+    if (diff <= 0) { tim.textContent = "Refreshing…"; return; }
+    const m = Math.floor(diff / 60000);
+    const s = Math.floor((diff % 60000) / 1000).toString().padStart(2, "0");
+    tim.textContent = `${m}:${s}`;
+  };
+  tick();
+  timerID = setInterval(tick, 1000);
 }
 
-// 🔄 Restore state when popup opens
-chrome.runtime.sendMessage({ action: "getStatus" }, (data) => {
-  toggle.checked = data.isRunning;
-  label.textContent = data.isRunning ? "Running" : "Stopped";
-  countDisplay.textContent = data.count.toString();
-
-  darkToggle.checked = data.darkMode;
-  document.body.classList.toggle("dark", data.darkMode);
-
-  if (data.isRunning && data.nextRefresh) {
-    startCountdown(data.nextRefresh);
-  } else {
-    timerDisplay.textContent = "--:--";
-  }
-});
-
-// 🔥 Listen for live count updates from background
-chrome.runtime.onMessage.addListener((message) => {
-  if (message.action === "updateCount") {
-    countDisplay.textContent = message.count.toString();
-  }
-});
-
-// 🥚 Easter egg: Copy button shows fun message
-copyButton.addEventListener("click", () => {
-  alert("👀 Curious? This feature’s not ready yet — coming soon!");
-});
+/* Easter-egg placeholder */
+egg.addEventListener("click", () => alert("👀 Curious? Coming soon!"));

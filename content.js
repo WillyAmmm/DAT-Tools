@@ -1,25 +1,102 @@
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message.action === "refreshNow") {
-    refreshDATPosts().then(() => {
-      sendResponse({ status: "refreshed" });
-    }).catch((err) => {
-      console.error("❌ refreshDATPosts failed:", err);
-      sendResponse({ status: "error", message: err.message });
-    });
-    return true; // tell Chrome this is async
+/* DAT Tools – content.js  (v4.8.1: skip timer logic while hidden) */
+
+const HEARTBEAT_MS = 3000;
+let observer = null,
+    beatID   = null,
+    lastRowCount  = 0,
+    lastDelaySent = null;
+
+/* ── bg → refreshNow ─────────────────────────────────────────────────── */
+chrome.runtime.onMessage.addListener((msg,_s,send)=>{
+  if(msg.action!=="refreshNow") return;
+
+  /* If tab not visible, timers are frozen – skip delay check */
+  if(document.visibilityState!=="visible"){
+    refreshDATPosts()
+      .then(()=>send({status:"refreshed"}))
+      .catch(e=>{console.error(e);send({status:"error"});});
+    return true;
   }
 
-  if (message.action === "countPosts") {
-    const gridShadow = document.querySelector("cg-grid")?.shadowRoot;
-    const rows = gridShadow?.querySelectorAll(".ag-center-cols-container .ag-row") || [];
-    sendResponse({ count: rows.length });
-  }
+  const delay=getLongestTimer();
+  if(delay>0){ send({status:"delayed",delay}); return true; }
 
-  if (message.action === "copyCoworkerPosts") {
-    copyPostsFromCoworker();
-    sendResponse({ status: "copying" });
-  }
+  refreshDATPosts()
+    .then(()=>send({status:"refreshed"}))
+    .catch(e=>{console.error(e);send({status:"error"});});
+  return true;
 });
+
+/* ───────── Start / Stop watchers ───────── */
+function startWatchers(){
+  if(observer||beatID||document.visibilityState!=="visible") return;
+  attachObserver();
+  beatID=setInterval(()=>evaluate("beat"),HEARTBEAT_MS);
+}
+function stopWatchers(){
+  observer?.disconnect(); observer=null;
+  clearInterval(beatID);  beatID=null;
+}
+document.addEventListener("visibilitychange",()=>{
+  document.visibilityState==="visible"?startWatchers():stopWatchers();
+});
+startWatchers();
+
+/* ───────── Mutation observer ───────── */
+function attachObserver(){
+  const box=rowBox();
+  if(!box){ setTimeout(attachObserver,500); return; }
+  lastRowCount=box.querySelectorAll(".ag-row").length;
+  lastDelaySent=getLongestTimer();
+  observer=new MutationObserver(()=>evaluate("mutation"));
+  observer.observe(box,{childList:true});
+}
+
+/* ───────── Decide if we should notify bg ───────── */
+function evaluate(src){
+  const box=rowBox(); if(!box) return;
+  const rows   = box.querySelectorAll(".ag-row").length;
+  const delay  = getLongestTimer();
+
+  let changed = false;
+  if(rows!==lastRowCount){ changed=true; lastRowCount=rows; }
+  else if(delay>lastDelaySent){          // timer *extended* (new row ready soon)
+    changed=true;
+  }
+
+  if(changed){
+    lastDelaySent=delay;
+    console.log(`[DAT] ${src}: rows=${rows}, longest=${delay}s`);
+    chrome.runtime.sendMessage({action:"postsModified",delay});
+  }
+}
+
+/* ───────── Helpers ───────── */
+function rowBox(){
+  return document.querySelector("cg-grid")
+    ?.shadowRoot?.querySelector(".ag-body-viewport .ag-center-cols-container")||null;
+}
+
+function getLongestTimer(){
+  const box=rowBox(); if(!box) return 0;
+  let longest=0;
+  box.querySelectorAll(".ag-row").forEach(r=>{
+    const age=r.querySelector("cg-grid-age-cell")?.shadowRoot;
+    const host=age?.querySelector("#queue-to-refresh-age-tooltip");
+    const span=host?.shadowRoot?.querySelector("span.timer-value");
+    if(span){
+      const secs=parseTimer(span.textContent.trim());
+      if(secs>longest) longest=secs;
+    }
+  });
+  return longest;
+}
+const parseTimer=t=>{
+  const p=t.split(":").map(Number);
+  if(p.length===3) return p[0]*3600+p[1]*60+p[2];
+  if(p.length===2) return p[0]*60+p[1];
+  return (p[0]||0)*60;
+};
 
 async function refreshDATPosts() {
   console.log("🚀 Running auto-refresh in content script...");
