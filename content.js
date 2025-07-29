@@ -141,7 +141,8 @@ async function refreshDATPosts() {
   // Wait for the button to be enabled (not disabled or aria-disabled) before clicking
   await waitForElementEnabled(refreshButton, 10000);
   await wait(250);
-  clickElement(refreshButton);
+
+  clickRefresh(refreshButton);
   console.log("✅ Refresh button clicked");
 
   try {
@@ -379,4 +380,13 @@ function clickElement(el) {
   el.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, view: window }));
   el.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true, view: window }));
   el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
+}
+
+function clickRefresh(el) {
+  if (!el) return;
+  clickElement(el);
+  const innerBtn = el.shadowRoot?.querySelector('button');
+  if (innerBtn && innerBtn !== el) {
+    clickElement(innerBtn);
+  }
 }
