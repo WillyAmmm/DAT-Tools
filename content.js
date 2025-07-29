@@ -131,12 +131,14 @@ async function refreshDATPosts() {
   const bulkShadow = bulkActions.shadowRoot;
   if (!bulkShadow) throw new Error("❌ cg-grid-bulk-actions shadowRoot not found");
 
-  const refreshButton = await findRefreshButton(bulkShadow, 10000);
-  const refreshShadow = await waitForShadowRoot(refreshButton, 5000);
-  const refreshInner = refreshShadow.querySelector("button");
-  if (!refreshInner) throw new Error("❌ Refresh button element not found");
+  // Use a robust helper to locate the refresh button from anywhere in the document.
+  // When the tab is hidden, the bulkActions shadow DOM may not be constructed yet.  
+  // waitForRefreshButton recursively searches through light DOM and shadow roots and
+  // polls until the button exists.  Once found, wait until it becomes enabled
+  // before clicking.
+  const refreshButton = await waitForRefreshButton(document, 20000, 500);
 
-  // ✅ FIXED: Wait for outer refreshButton to be enabled before clicking
+  // Wait for the button to be enabled (not disabled or aria-disabled) before clicking
   await waitForElementEnabled(refreshButton, 10000);
   await wait(250);
   clickElement(refreshButton);
@@ -274,6 +276,58 @@ const findRefreshButton = async (root, maxWait = 10000, interval = 100) => {
   console.warn("⚠️ Timeout locating refresh button");
   throw new Error("Timeout: refresh button not found");
 };
+
+/*
+ * [DAT-Fix] Recursively search for the refresh button anywhere in the document.
+ * On hidden or minimised tabs, certain shadow DOM roots may not be attached
+ * immediately and MutationObservers may be throttled.  This helper uses
+ * setInterval polling combined with a recursive search through light DOM and
+ * any available shadow roots to locate a button whose id, aria-label or
+ * text includes "refresh".  It resolves with the button element once found
+ * or rejects after maxWait milliseconds.
+ */
+async function waitForRefreshButton(root = document, maxWait = 20000, pollInterval = 500) {
+  const startTime = Date.now();
+  return new Promise((resolve, reject) => {
+    function isRefresh(el) {
+      const id    = (el.id || "").toLowerCase();
+      const label = (el.getAttribute?.("aria-label") || "").toLowerCase();
+      const text  = (el.textContent || "").toLowerCase().trim();
+      return id.includes("refresh") || label.includes("refresh") || text === "refresh";
+    }
+    function search(node) {
+      if (!node) return null;
+      const buttons = node.querySelectorAll?.("button, cg-button, cg-icon-button") || [];
+      for (const btn of buttons) {
+        if (isRefresh(btn)) return btn;
+      }
+      for (const child of node.children || []) {
+        const found = search(child);
+        if (found) return found;
+      }
+      if (node.shadowRoot) {
+        const found = search(node.shadowRoot);
+        if (found) return found;
+      }
+      return null;
+    }
+    function tick() {
+      const btn = search(root);
+      if (btn) {
+        console.log("[DAT-Fix] refresh button found via polling");
+        clearInterval(handle);
+        resolve(btn);
+        return;
+      }
+      if (Date.now() - startTime >= maxWait) {
+        clearInterval(handle);
+        reject(new Error("[DAT-Fix] Timeout: refresh button not found"));
+      }
+    }
+    const handle = setInterval(tick, pollInterval);
+    tick();
+  });
+}
 
 function wait(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
