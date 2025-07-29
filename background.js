@@ -89,53 +89,75 @@ chrome.alarms.onAlarm.addListener(a=>{
   if(a.name==="datRefreshAlarm" && isRunning) sendRefreshRequest();
 });
 
+/* Focus DAT tab while running action, then restore previous tab */
+const withTabFocus = (tab, callback) => {
+  chrome.tabs.query({ active: true, lastFocusedWindow: true }, activeTabs => {
+    const prev = activeTabs[0];
+    const restore = () => {
+      if (!prev) return;
+      chrome.windows.update(prev.windowId, { focused: true }, () =>
+        chrome.tabs.update(prev.id, { active: true })
+      );
+    };
+    chrome.windows.update(tab.windowId, { focused: true }, () =>
+      chrome.tabs.update(tab.id, { active: true }, () => callback(restore))
+    );
+  });
+};
+
 /* ───────── main refresh routine ───────── */
 function sendRefreshRequest(){
   chrome.tabs.query({ url:"https://one.dat.com/*" }, tabs=>{
     if(!tabs.length) return;
 
-    const tabId = tabs[0].id;
-    chrome.tabs.sendMessage(tabId,{action:"refreshNow"},res=>{
-      /* No listener yet → retry in 15 s */
-      if(chrome.runtime.lastError || !res){
-        scheduleAlarm(0.25,false);
-        notifyPopupDelay(true);
-        return;
-      }
-
-      /* content says: still counting down */
-      if(res.status === "delayed"){
-        const totalSec = res.delay + BUFFER_SEC;
-        if(!isDelayed){
-          chrome.notifications.create({
-            type:"basic", iconUrl:"icon.png",
-            title:"DAT Auto Refresh",
-            message:`Refresh delayed – waiting ${fmt(totalSec)}`
-          });
+    const tab = tabs[0];
+    withTabFocus(tab, restore => {
+      chrome.tabs.sendMessage(tab.id,{action:"refreshNow"},res=>{
+        /* No listener yet → retry in 15 s */
+        if(chrome.runtime.lastError || !res){
+          scheduleAlarm(0.25,false);
+          notifyPopupDelay(true);
+          restore();
+          return;
         }
-        isDelayed = true;
-        scheduleAlarm(totalSec/60,false);
-        notifyPopupDelay(true);
-        return;
-      }
 
-      /* content performed refresh OK */
-      if(res.status === "refreshed"){
-        count++; isDelayed=false; lastRefresh=Date.now();
-        chrome.storage.local.set({ count, isDelayed });
+        /* content says: still counting down */
+        if(res.status === "delayed"){
+          const totalSec = res.delay + BUFFER_SEC;
+          if(!isDelayed){
+            chrome.notifications.create({
+              type:"basic", iconUrl:"icon.png",
+              title:"DAT Auto Refresh",
+              message:`Refresh delayed – waiting ${fmt(totalSec)}`
+            });
+          }
+          isDelayed = true;
+          scheduleAlarm(totalSec/60,false);
+          notifyPopupDelay(true);
+          restore();
+          return;
+        }
 
-        createNotification(`DAT loadboard refreshed! (${count})`);
-        scheduleAlarm(REFRESH_INT_MIN+0.5,true);        // 15 m 30 s
-        chrome.runtime.sendMessage({ action:"updateCount", count, nextRefresh });
-        return;
-      }
+        /* content performed refresh OK */
+        if(res.status === "refreshed"){
+          count++; isDelayed=false; lastRefresh=Date.now();
+          chrome.storage.local.set({ count, isDelayed });
 
-      /* any explicit error from content */
-      if(res.status === "error"){
-        createNotification(`Refresh failed: ${res.message||"unknown error"}`);
-        scheduleAlarm(REFRESH_INT_MIN+0.5,true);
-        notifyPopupDelay(false);
-      }
+          createNotification(`DAT loadboard refreshed! (${count})`);
+          scheduleAlarm(REFRESH_INT_MIN+0.5,true);        // 15 m 30 s
+          chrome.runtime.sendMessage({ action:"updateCount", count, nextRefresh });
+          restore();
+          return;
+        }
+
+        /* any explicit error from content */
+        if(res.status === "error"){
+          createNotification(`Refresh failed: ${res.message||"unknown error"}`);
+          scheduleAlarm(REFRESH_INT_MIN+0.5,true);
+          notifyPopupDelay(false);
+        }
+        restore();
+      });
     });
   });
 }

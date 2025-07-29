@@ -84,6 +84,7 @@ Users can toggle dark mode on or off
 - Function to copy coworker's posts
 
 ## 📄 Changelog
-
+- 7/29 Improved background reliability by temporarily focusing the DAT tab during refresh.
 - 7/22 Updated README with clearer instructions for release.
 - 7/21 Fixed refresh hanging. Refreshes more reliably now.
+
