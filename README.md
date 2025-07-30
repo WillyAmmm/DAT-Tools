@@ -85,5 +85,6 @@ Users can toggle dark mode on or off
 
 ## 📄 Changelog
 
+- 7/30 DEV _ Added smart delay feature
 - 7/22 Updated README with clearer instructions for release.
 - 7/21 Fixed refresh hanging. Refreshes more reliably now.
