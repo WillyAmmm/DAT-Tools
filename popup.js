@@ -4,7 +4,7 @@ const lbl  = document.getElementById("toggleLabel");
 const tim  = document.getElementById("timer");
 const cnt  = document.getElementById("count");
 const dTgl = document.getElementById("darkMode");
-const egg  = document.getElementById("copyCoworkerBtn");
+const copyBtn = document.getElementById("copyCoworkerBtn");
 
 let timerID;
 
@@ -74,5 +74,17 @@ function startClock(stamp) {
   timerID = setInterval(tick, 1000);
 }
 
-/* Easter-egg placeholder */
-egg.addEventListener("click", () => alert("👀 Curious? Coming soon!"));
+/* ───── copy coworker posts ───── */
+copyBtn.addEventListener("click", () => {
+  chrome.tabs.query({ url: "https://one.dat.com/*" }, tabs => {
+    if (!tabs.length) { alert("No DAT tab found."); return; }
+    chrome.tabs.sendMessage(tabs[0].id, { action: "copyCoworker" }, res => {
+      if (chrome.runtime.lastError) {
+        alert("Unable to start copy routine.");
+        return;
+      }
+      if (res?.status === "error") alert(`Error: ${res.message}`);
+      else alert("Copy routine finished.");
+    });
+  });
+});
