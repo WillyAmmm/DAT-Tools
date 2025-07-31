@@ -74,5 +74,12 @@ function startClock(stamp) {
   timerID = setInterval(tick, 1000);
 }
 
-/* Easter-egg placeholder */
-egg.addEventListener("click", () => alert("👀 Curious? Coming soon!"));
+/* trigger copy coworker posts */
+egg.addEventListener("click", () => {
+  chrome.tabs.query({ active: true, currentWindow: true }, tabs => {
+    const tabId = tabs[0]?.id;
+    if (tabId) {
+      chrome.tabs.sendMessage(tabId, { action: "copyCoworkerPosts" });
+    }
+  });
+});

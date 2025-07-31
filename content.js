@@ -8,6 +8,11 @@ let observer = null,
 
 /* ── background → refreshNow ───────────────────────────────────────────── */
 chrome.runtime.onMessage.addListener((msg, _sender, send) => {
+  if (msg.action === "copyCoworkerPosts") {
+    copyPostsFromCoworker();
+    send({ status: "started" });
+    return;
+  }
   if (msg.action !== "refreshNow") return;
 
   if (document.visibilityState !== "visible") {
@@ -238,49 +243,73 @@ async function findRefreshButton(root, max = 10_000, step = 100) {
   throw new Error("Timeout: refresh button not found");
 }
 
-/* ───────── utility: copy coworker posts (unchanged) ───────── */
-async function copyPostsFromCoworker() {
+/* ───────── utility: copy coworker posts ───────── */
+const copyPostsFromCoworker = async () => {
   console.log("Starting copy routine…");
 
-  const gridShadow = document.querySelector("cg-grid")?.shadowRoot;
-  const rows       = gridShadow?.querySelectorAll(".ag-center-cols-container .ag-row");
-  if (!rows || rows.length === 0) { console.log("No rows found to copy."); return; }
+  const grid     = await waitForElement("cg-grid", document, 10_000).catch(() => null);
+  const gridRoot = grid && (await waitForShadowRoot(grid).catch(() => null));
+  const container = gridRoot?.querySelector(".ag-center-cols-container");
+  const rows = [...container?.querySelectorAll(".ag-row") || []];
+  const ids  = rows.map(r => r.getAttribute("row-id")).filter(Boolean);
+  if (!ids.length) { alert("No posts found to copy."); return; }
 
-  const firstOwner = rows[0].querySelector("cg-grid-owner-cell")?.textContent.trim();
-  if (!firstOwner) { console.warn("❌ Could not determine owner from first row."); return; }
+  const estSec = ids.length * 4;
+  const estMsg = `${Math.floor(estSec/60)}m${String(estSec%60).padStart(2,"0")}s`;
+  if (!confirm(`Duplicate ${ids.length} posts? Estimated time: ${estMsg}`)) return;
 
-  console.log(`Target owner detected: ${firstOwner}`);
-  let copied = 0;
-
-  for (let i = 0; i < rows.length; i++) {
-    const row    = rows[i];
-    const owner  = row.querySelector("cg-grid-owner-cell")?.textContent.trim();
-    if (owner !== firstOwner) { console.log(`Skip row ${i}: owner=${owner}`); continue; }
-
+  for (const id of ids) {
     try {
-      const actionCell = row.querySelector("cg-grid-action-cell");
-      const menuBtn    = actionCell?.shadowRoot?.querySelector("div > cg-icon-button")
-                         ?.shadowRoot?.querySelector("button");
-      if (!menuBtn) { console.warn(`⚠️ menu not found row ${i}`); continue; }
+      const row = await waitForRow(id, 20_000);
+      if (!row) { console.warn(`Row ${id} not found`); continue; }
 
-      menuBtn.click(); await wait(100);
+      const menuBtn = row.querySelector("cg-grid-action-cell")
+        ?.shadowRoot?.querySelector("div > cg-icon-button")
+        ?.shadowRoot?.querySelector("button");
+      if (!menuBtn) { console.warn(`Menu button missing for ${id}`); continue; }
+      clickElement(menuBtn); await wait(200);
 
-      const menu      = document.querySelector("body > cg-grid-menu")?.shadowRoot;
-      const copyOpt   = [...menu?.querySelectorAll("cg-option") || []]
-                          .find(el => el.textContent.trim() === "Copy");
+      const menu = await waitForElement("body > cg-grid-menu", document, 5_000).catch(() => null);
+      const menuRoot = menu && (await waitForShadowRoot(menu).catch(() => null));
+      const copyOpt = [...menuRoot?.querySelectorAll("cg-option") || []]
+        .find(o => o.textContent.trim() === "Copy");
       const clickable = copyOpt?.querySelector("div.option-content > div");
-      if (!clickable) { console.warn(`⚠️ copy opt not clickable row ${i}`); continue; }
+      if (!clickable) { console.warn(`Copy option not found for ${id}`); continue; }
+      clickElement(clickable); await wait(300);
 
-      clickable.click(); await wait(100);
+      const postBtn = await waitForElement("#shipment-submit-button", document, 15_000).catch(() => null);
+      if (!postBtn) { console.warn(`Post button missing for ${id}`); continue; }
+      await waitForElementEnabled(postBtn, 15_000).catch(() => null);
+      clickElement(postBtn); await wait(300);
 
-      const postBtn = [...document.querySelectorAll("button")]
-                        .find(el => el.textContent.trim() === "Post");
-      if (!postBtn) { console.warn(`⚠️ Post button missing row ${i}`); continue; }
-
-      postBtn.click(); await wait(100);
-      console.log(`✅ Copied & posted row ${i}`); copied++;
-
-    } catch (err) { console.error(`❌ Error row ${i}:`, err); }
+      await waitForGrid(20_000);
+      await wait(300);
+      console.log(`✅ Copied ${id}`);
+    } catch (err) {
+      console.error(`❌ Error copying ${id}:`, err);
+    }
   }
-  console.log(`✅ Done. Copied ${copied} post(s) for owner: ${firstOwner}`);
-}
+
+  alert(`Finished copying ${ids.length} post(s).`);
+};
+
+const waitForRow = async (id, max = 10_000, step = 200) => {
+  const start = Date.now();
+  while (Date.now() - start < max) {
+    const gridRoot = document.querySelector("cg-grid")?.shadowRoot;
+    const row = gridRoot?.querySelector(`.ag-row[row-id="${id}"]`);
+    if (row) return row;
+    await wait(step);
+  }
+  return null;
+};
+
+const waitForGrid = async (max = 10_000, step = 200) => {
+  const start = Date.now();
+  while (Date.now() - start < max) {
+    const gridRoot = document.querySelector("cg-grid")?.shadowRoot;
+    if (gridRoot?.querySelector(".ag-row")) return true;
+    await wait(step);
+  }
+  throw new Error("Timeout waiting for grid");
+};
