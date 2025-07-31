@@ -8,22 +8,29 @@ let observer = null,
 
 /* ── background → refreshNow ───────────────────────────────────────────── */
 chrome.runtime.onMessage.addListener((msg, _sender, send) => {
-  if (msg.action !== "refreshNow") return;
+  if (msg.action === "refreshNow") {
+    if (document.visibilityState !== "visible") {
+      refreshDATPosts()
+        .then(() => send({ status: "refreshed" }))
+        .catch(e => { console.error(e); send({ status: "error", message: e.message }); });
+      return true;
+    }
 
-  if (document.visibilityState !== "visible") {
+    const delay = getLongestTimer();
+    if (delay > 0) { send({ status: "delayed", delay }); return true; }
+
     refreshDATPosts()
       .then(() => send({ status: "refreshed" }))
       .catch(e => { console.error(e); send({ status: "error", message: e.message }); });
     return true;
   }
 
-  const delay = getLongestTimer();
-  if (delay > 0) { send({ status: "delayed", delay }); return true; }
-
-  refreshDATPosts()
-    .then(() => send({ status: "refreshed" }))
-    .catch(e => { console.error(e); send({ status: "error", message: e.message }); });
-  return true;
+  if (msg.action === "copyCoworker") {
+    copyPostsFromCoworker()
+      .then(() => send({ status: "done" }))
+      .catch(e => { console.error(e); send({ status: "error", message: e.message }); });
+    return true;
+  }
 });
 
 /* ───────── start / stop DOM watchers ───────── */
@@ -238,49 +245,46 @@ async function findRefreshButton(root, max = 10_000, step = 100) {
   throw new Error("Timeout: refresh button not found");
 }
 
-/* ───────── utility: copy coworker posts (unchanged) ───────── */
-async function copyPostsFromCoworker() {
+/* ───────── utility: copy coworker posts ───────── */
+const copyPostsFromCoworker = async () => {
   console.log("Starting copy routine…");
 
-  const gridShadow = document.querySelector("cg-grid")?.shadowRoot;
-  const rows       = gridShadow?.querySelectorAll(".ag-center-cols-container .ag-row");
-  if (!rows || rows.length === 0) { console.log("No rows found to copy."); return; }
+  const grid = document.querySelector("cg-grid")?.shadowRoot;
+  const rows = [...grid?.querySelectorAll(".ag-center-cols-container .ag-row") || []];
+  if (!rows.length) { alert("No posts found to copy."); return; }
 
-  const firstOwner = rows[0].querySelector("cg-grid-owner-cell")?.textContent.trim();
-  if (!firstOwner) { console.warn("❌ Could not determine owner from first row."); return; }
+  const ids = rows.map(r => r.getAttribute("row-id")).filter(Boolean);
+  const est = Math.ceil(ids.length * 4.5);
+  const estMsg = est > 60 ? `${Math.floor(est / 60)}m ${est % 60}s` : `${est}s`;
 
-  console.log(`Target owner detected: ${firstOwner}`);
-  let copied = 0;
+  if (!confirm(`Duplicate ${ids.length} posts? Estimated time ~${estMsg}.`)) return;
 
-  for (let i = 0; i < rows.length; i++) {
-    const row    = rows[i];
-    const owner  = row.querySelector("cg-grid-owner-cell")?.textContent.trim();
-    if (owner !== firstOwner) { console.log(`Skip row ${i}: owner=${owner}`); continue; }
-
+  for (const id of ids) {
+    const row = grid.querySelector(`.ag-row[row-id="${id}"]`);
+    if (!row) continue;
     try {
-      const actionCell = row.querySelector("cg-grid-action-cell");
-      const menuBtn    = actionCell?.shadowRoot?.querySelector("div > cg-icon-button")
-                         ?.shadowRoot?.querySelector("button");
-      if (!menuBtn) { console.warn(`⚠️ menu not found row ${i}`); continue; }
+      const btn = row.querySelector("cg-grid-action-cell")?.shadowRoot?.querySelector("button");
+      if (!btn) { console.warn("Menu button missing", id); continue; }
+      clickElement(btn);
+      await wait(200);
 
-      menuBtn.click(); await wait(100);
+      const menu = await waitForElement("body > cg-grid-menu", document, 5_000);
+      const opt = [...menu.shadowRoot.querySelectorAll("cg-option")].find(o => o.textContent.trim() === "Copy");
+      const clickable = opt?.querySelector("div.option-content > div") || opt;
+      if (!clickable) { console.warn("Copy option not found", id); continue; }
+      clickElement(clickable);
+      await wait(400);
 
-      const menu      = document.querySelector("body > cg-grid-menu")?.shadowRoot;
-      const copyOpt   = [...menu?.querySelectorAll("cg-option") || []]
-                          .find(el => el.textContent.trim() === "Copy");
-      const clickable = copyOpt?.querySelector("div.option-content > div");
-      if (!clickable) { console.warn(`⚠️ copy opt not clickable row ${i}`); continue; }
+      const post = await waitForElement("#shipment-submit-button", document, 30_000);
+      clickElement(post);
+      await wait(1000);
 
-      clickable.click(); await wait(100);
-
-      const postBtn = [...document.querySelectorAll("button")]
-                        .find(el => el.textContent.trim() === "Post");
-      if (!postBtn) { console.warn(`⚠️ Post button missing row ${i}`); continue; }
-
-      postBtn.click(); await wait(100);
-      console.log(`✅ Copied & posted row ${i}`); copied++;
-
-    } catch (err) { console.error(`❌ Error row ${i}:`, err); }
+      await waitForElement("cg-grid", document, 30_000);
+      await wait(500);
+      console.log("Copied post", id);
+    } catch (err) {
+      console.error("Error copying", id, err);
+    }
   }
-  console.log(`✅ Done. Copied ${copied} post(s) for owner: ${firstOwner}`);
-}
+  alert(`Finished copying ${ids.length} posts.`);
+};
