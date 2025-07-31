@@ -4,7 +4,7 @@ const lbl  = document.getElementById("toggleLabel");
 const tim  = document.getElementById("timer");
 const cnt  = document.getElementById("count");
 const dTgl = document.getElementById("darkMode");
-const egg  = document.getElementById("copyCoworkerBtn");
+const copyBtn = document.getElementById("copyCoworkerBtn");
 
 let timerID;
 
@@ -74,5 +74,7 @@ function startClock(stamp) {
   timerID = setInterval(tick, 1000);
 }
 
-/* Easter-egg placeholder */
-egg.addEventListener("click", () => alert("👀 Curious? Coming soon!"));
+/* ───── trigger copy coworker action ───── */
+copyBtn.addEventListener("click", () => {
+  chrome.runtime.sendMessage({ action: "copyCoworker" });
+});

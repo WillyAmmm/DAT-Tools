@@ -61,6 +61,15 @@ chrome.runtime.onMessage.addListener((msg,_s,send)=>{
       );
       return true;                              // async
 
+    case "copyCoworker":
+      chrome.tabs.query({ url:"https://one.dat.com/*" }, tabs => {
+        if(tabs.length) {
+          chrome.tabs.sendMessage(tabs[0].id, { action:"copyCoworker" });
+        }
+      });
+      send({ status:"copying" });
+      break;
+
     /* mutation from content-script */
     case "postsModified": {
       if(!isRunning) break;
